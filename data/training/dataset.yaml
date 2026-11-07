@@ -1,0 +1,10 @@
+path: C:\Users\hp\Desktop\Vision Guard\data\training
+train: C:\Users\hp\Desktop\Vision Guard\data\training\images\train
+val: C:\Users\hp\Desktop\Vision Guard\data\training\images\val
+nc: 5
+names:
+  0: crack
+  1: scratch
+  2: dent
+  3: stain
+  4: chip

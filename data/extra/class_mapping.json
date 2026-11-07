@@ -1,0 +1,67 @@
+{
+  "target_classes": {
+    "0": "crazing",
+    "1": "inclusion",
+    "2": "patches",
+    "3": "pitted_surface",
+    "4": "rolled_in_scale",
+    "5": "scratches",
+    "6": "dent"
+  },
+  "name_to_target_id": {
+    "crazing": 0,
+    "crack": 0,
+    "micro_crack": 0,
+    "crease": 0,
+    "thermal_crack": 0,
+    "inclusion": 1,
+    "slag_inclusion": 1,
+    "slag": 1,
+    "oxide_inclusion": 1,
+    "patches": 2,
+    "patch": 2,
+    "surface_oxidation": 2,
+    "scab": 2,
+    "water_spot": 2,
+    "oil_spot": 2,
+    "silk_spot": 2,
+    "pitted_surface": 3,
+    "pit": 3,
+    "pitting": 3,
+    "rolled_pit": 3,
+    "cavity": 3,
+    "rolled_in_scale": 4,
+    "scale": 4,
+    "mill_scale": 4,
+    "oxide_scale": 4,
+    "scratches": 5,
+    "scratch": 5,
+    "abrasion": 5,
+    "linear_scratch": 5,
+    "dent": 6,
+    "punching_dent": 6,
+    "punch_hole": 6,
+    "mechanical_dent": 6,
+    "dimple": 6,
+    "impression": 6
+  },
+  "gc10_det_id_mapping": {
+    "0": 6,
+    "1": 5,
+    "2": 0,
+    "3": 2,
+    "4": 2,
+    "5": 2,
+    "6": 1,
+    "7": 3,
+    "8": 0,
+    "9": 0
+  },
+  "severstal_id_mapping": {
+    "1": 3,
+    "2": 2,
+    "3": 5,
+    "4": 6
+  }
+}
+

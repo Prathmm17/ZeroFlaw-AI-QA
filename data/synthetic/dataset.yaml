@@ -1,0 +1,9 @@
+path: C:\Users\hp\Desktop\Vision Guard\data\synthetic
+train: images/train
+val: images/val
+names:
+  0: crack
+  1: scratch
+  2: dent
+  3: stain
+  4: chip

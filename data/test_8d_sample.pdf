@@ -1,0 +1,100 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 5105 >>
+stream
+0.050 0.090 0.160 rg 0.0 722.0 612.0 70.0 re f
+0.220 0.740 0.970 rg 0.0 719.0 612.0 3.0 re f
+BT /F2 13.0 Tf 1.000 1.000 1.000 rg 40.0 757.0 Td (VISIONGUARD QA  -  AUTOMATED QUALITY INTELLIGENCE) Tj ET
+BT /F1 10.0 Tf 0.600 0.800 1.000 rg 40.0 740.0 Td (FORMAL 8D DISCREPANCY & ROOT-CAUSE AUDIT REPORT) Tj ET
+BT /F2 10.0 Tf 0.300 0.900 0.600 rg 412.0 757.0 Td (Audit Ref: VG-8D-000787) Tj ET
+BT /F1 8.0 Tf 0.800 0.800 0.800 rg 412.0 740.0 Td (Date: N/A) Tj ET
+0.940 0.960 0.980 rg 40.0 672.0 532.0 30.0 re f
+0.800 0.850 0.900 RG 1.0 w 40.0 672.0 532.0 30.0 re S
+BT /F2 8.0 Tf 0.300 0.300 0.400 rg 50.0 685.0 Td (PRIMARY DEFECT:) Tj ET
+BT /F2 9.0 Tf 0.800 0.100 0.100 rg 135.0 685.0 Td (CRAZING) Tj ET
+BT /F2 8.0 Tf 0.300 0.300 0.400 rg 240.0 685.0 Td (SEVERITY RISK:) Tj ET
+BT /F2 9.0 Tf 0.800 0.100 0.100 rg 315.0 685.0 Td (CRITICAL) Tj ET
+BT /F2 8.0 Tf 0.300 0.300 0.400 rg 410.0 685.0 Td (STANDARD:) Tj ET
+BT /F1 8.0 Tf 0.100 0.100 0.100 rg 470.0 685.0 Td (ISO 9001:2015) Tj ET
+0.070 0.130 0.220 rg 40.0 639.0 532.0 22.0 re f
+BT /F2 10.0 Tf 0.220 0.740 0.970 rg 48.0 644.0 Td (D1) Tj ET
+BT /F2 10.0 Tf 1.000 1.000 1.000 rg 110.0 644.0 Td ( -  CROSS-FUNCTIONAL TEAM ESTABLISHMENT) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 629.0 Td (Team Champion:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 629.0 Td (Quality Assurance Director / Plant Manager) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 613.0 Td (Core Team Members:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 613.0 Td (Lead Process Metallurgist, Mill Superintendent, QA Reliability Specialist) Tj ET
+0.070 0.130 0.220 rg 40.0 579.0 532.0 22.0 re f
+BT /F2 10.0 Tf 0.220 0.740 0.970 rg 48.0 584.0 Td (D2) Tj ET
+BT /F2 10.0 Tf 1.000 1.000 1.000 rg 110.0 584.0 Td ( -  PROBLEM DESCRIPTION & PHYSICAL SCOPE) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 569.0 Td (Failure Mechanism:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 569.0 Td (Surface morphological anomaly) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 553.0 Td (Tooling Station:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 553.0 Td (Main Rolling Finishing Mill Stand F2) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 537.0 Td (Problem Detail:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 537.0 Td (Optical anomaly detected on specimen VG-8D-000787 exceeding surface texture) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 68.0 525.0 Td (threshold.) Tj ET
+0.070 0.130 0.220 rg 40.0 491.0 532.0 22.0 re f
+BT /F2 10.0 Tf 0.220 0.740 0.970 rg 48.0 496.0 Td (D3) Tj ET
+BT /F2 10.0 Tf 1.000 1.000 1.000 rg 110.0 496.0 Td ( -  INTERIM CONTAINMENT ACTIONS \(ICA\)) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 481.0 Td (Immediate Containment:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 481.0 Td (Quarantine affected manufacturing lot immediately.) Tj ET
+0.070 0.130 0.220 rg 40.0 447.0 532.0 22.0 re f
+BT /F2 10.0 Tf 0.220 0.740 0.970 rg 48.0 452.0 Td (D4) Tj ET
+BT /F2 10.0 Tf 1.000 1.000 1.000 rg 110.0 452.0 Td ( -  ROOT CAUSE ANALYSIS \(RCA / 5-WHY\)) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 437.0 Td (Root Cause Mechanism:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 437.0 Td (Test root cause) Tj ET
+0.070 0.130 0.220 rg 40.0 403.0 532.0 22.0 re f
+BT /F2 10.0 Tf 0.220 0.740 0.970 rg 48.0 408.0 Td (D5) Tj ET
+BT /F2 10.0 Tf 1.000 1.000 1.000 rg 110.0 408.0 Td ( -  PERMANENT CORRECTIVE ACTION \(PCA\)) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 393.0 Td (Selected PCA:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 393.0 Td (Inspect and redress work rolls; adjust coolant nozzle spray angles.) Tj ET
+0.070 0.130 0.220 rg 40.0 359.0 532.0 22.0 re f
+BT /F2 10.0 Tf 0.220 0.740 0.970 rg 48.0 364.0 Td (D6) Tj ET
+BT /F2 10.0 Tf 1.000 1.000 1.000 rg 110.0 364.0 Td ( -  IMPLEMENTATION & VALIDATION) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 349.0 Td (Execution Verification:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 349.0 Td (Tooling replacement scheduled and optical inspection verified on next 10) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 68.0 337.0 Td (consecutive batches.) Tj ET
+0.070 0.130 0.220 rg 40.0 303.0 532.0 22.0 re f
+BT /F2 10.0 Tf 0.220 0.740 0.970 rg 48.0 308.0 Td (D7) Tj ET
+BT /F2 10.0 Tf 1.000 1.000 1.000 rg 110.0 308.0 Td ( -  PREVENT RECURRENCE & STANDARDIZATION) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 293.0 Td (Systemic Prevention:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 293.0 Td (Update Process FMEA \(PFMEA-VG-084\) and recalibrate maintenance intervals.) Tj ET
+0.070 0.130 0.220 rg 40.0 259.0 532.0 22.0 re f
+BT /F2 10.0 Tf 0.220 0.740 0.970 rg 48.0 264.0 Td (D8) Tj ET
+BT /F2 10.0 Tf 1.000 1.000 1.000 rg 110.0 264.0 Td ( -  CONGRATULATE TEAM & SIGN-OFF) Tj ET
+BT /F2 9.0 Tf 0.200 0.200 0.300 rg 48.0 249.0 Td (Closure Status:) Tj ET
+BT /F1 9.0 Tf 0.100 0.100 0.100 rg 178.0 249.0 Td (8D Discrepancy report validated and approved for production resumption.) Tj ET
+BT /F2 7.0 Tf 0.500 0.500 0.500 rg 40.0 25.0 Td (CONFIDENTIAL  -  ISO 9001:2015 / IATF 16949 COMPLIANT QUALITY RECORD) Tj ET
+BT /F1 7.0 Tf 0.500 0.500 0.500 rg 342.0 25.0 Td (Page 1 of 1  -  VisionGuard QA Autonomous Quality Management) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612.0 792.0] /Contents 5 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000005477 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+5617
+%%EOF

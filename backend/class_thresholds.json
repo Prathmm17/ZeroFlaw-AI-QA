@@ -1,0 +1,67 @@
+{
+  "model": "best.pt",
+  "dataset": "real_industrial_dataset",
+  "split": "val",
+  "mAP50": 0.9734,
+  "mAP50_95": 0.7498,
+  "precision": 0.9768,
+  "recall": 0.9422,
+  "thresholds": {
+    "crazing": 0.245,
+    "inclusion": 0.136,
+    "patches": 0.432,
+    "pitted_surface": 0.412,
+    "rolled_in_scale": 0.345,
+    "scratches": 0.601
+  },
+  "per_class": {
+    "crazing": {
+      "class_id": 0,
+      "threshold": 0.245,
+      "f1": 0.909,
+      "precision": 0.909,
+      "recall": 0.909,
+      "ap50": 0.932
+    },
+    "inclusion": {
+      "class_id": 1,
+      "threshold": 0.136,
+      "f1": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "ap50": 0.995
+    },
+    "patches": {
+      "class_id": 2,
+      "threshold": 0.432,
+      "f1": 0.95,
+      "precision": 0.95,
+      "recall": 0.95,
+      "ap50": 0.93
+    },
+    "pitted_surface": {
+      "class_id": 3,
+      "threshold": 0.412,
+      "f1": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "ap50": 0.995
+    },
+    "rolled_in_scale": {
+      "class_id": 4,
+      "threshold": 0.345,
+      "f1": 0.977,
+      "precision": 0.954,
+      "recall": 1.0,
+      "ap50": 0.993
+    },
+    "scratches": {
+      "class_id": 5,
+      "threshold": 0.601,
+      "f1": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "ap50": 0.995
+    }
+  }
+}

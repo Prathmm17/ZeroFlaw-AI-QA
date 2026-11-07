@@ -1,0 +1,11 @@
+path: C:/Users/hp/Desktop/Vision Guard/data/industrial_benchmark
+train: images/train
+val: images/val
+nc: 6
+names:
+  0: crazing
+  1: inclusion
+  2: patches
+  3: pitted_surface
+  4: rolled_in_scale
+  5: scratches

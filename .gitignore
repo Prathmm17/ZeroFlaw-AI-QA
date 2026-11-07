@@ -1,0 +1,67 @@
+# .gitignore for ZeroFlaw AI-QA
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+venv/
+.venv/
+env/
+.pytest_cache/
+
+# Models (Keep core production weights, ignore root temp weights)
+/*.pt
+models/*.pt
+models/*.onnx
+!models/best.onnx
+!models/best.onnx.data
+!models/best.pt
+runs/
+
+# Data
+data/uploads/*
+data/results/*
+data/db/*.db
+data/training/images/train/*
+data/training/images/val/*
+data/training/labels/train/*
+data/training/labels/val/*
+!data/**/.gitkeep
+!data/samples/*
+
+# Node & Frontend Build
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary debug images
+*_debug.png
+detected_*.png
+
+# Secrets & Environment variables
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.token
+credentials.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

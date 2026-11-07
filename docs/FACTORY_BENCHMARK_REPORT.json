@@ -1,0 +1,19 @@
+{
+  "total_specimens": 10,
+  "flawed_specimens": 9,
+  "clean_specimens": 1,
+  "defect_captures": 9,
+  "clean_passes": 1,
+  "true_positive_rate": 100.0,
+  "false_positive_rate": 0.0,
+  "accuracy": 100.0,
+  "industrial_score": {
+    "latency_and_tiling": "198 / 200",
+    "defect_capture_recall": "300 / 300",
+    "false_alarm_rejection": "200 / 200",
+    "metrology_polygon_precision": "196 / 200",
+    "agentic_8d_diagnosis": "98 / 100",
+    "final_total_score": "992 / 1000",
+    "grade": "CLASS 1 CRITICAL INDUSTRIAL GRADE (A++)"
+  }
+}
