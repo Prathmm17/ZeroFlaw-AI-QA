@@ -1,0 +1,26 @@
+# ZeroFlaw AI-QA - Production Requirements (Render Free Tier 512MB RAM)
+# Lightweight CPU-only ONNX Runtime stack (<150MB peak memory)
+
+# ML / Computer Vision (Pure ONNX CPU, no PyTorch / Ultralytics overhead)
+onnxruntime>=1.17.0,<2.0.0
+opencv-python-headless>=4.8.0,<5.0.0
+numpy>=1.24.0,<3.0.0
+Pillow>=10.0.0
+PyYAML>=6.0.0
+
+# Backend & Web Framework
+fastapi>=0.110.0
+uvicorn>=0.28.0
+sqlalchemy>=2.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.9
+httpx>=0.27.0
+aiofiles>=23.0.0
+websockets>=12.0
+
+# Utilities
+python-dateutil>=2.8.0
+python-dotenv>=1.0.0
+psutil>=5.9.0
+

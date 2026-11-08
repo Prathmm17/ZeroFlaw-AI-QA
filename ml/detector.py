@@ -153,33 +153,36 @@ class DefectDetector:
             if model_path.suffix.lower() == ".onnx" and model_path.is_file():
                 import onnxruntime as ort
                 opts = ort.SessionOptions()
-                num_threads = getattr(settings, "ONNX_NUM_THREADS", 8)
-                opts.intra_op_num_threads = min(8, max(2, num_threads))
+                num_threads = getattr(settings, "ONNX_NUM_THREADS", 1)
+                opts.intra_op_num_threads = min(4, max(1, num_threads))
                 opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
                 opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
                 self._onnx_session = ort.InferenceSession(str(model_path), opts, providers=["CPUExecutionProvider"])
                 self._onnx_input_name = self._onnx_session.get_inputs()[0].name
-                logger.info("Direct ONNX stream session initialized with %d threads", opts.intra_op_num_threads)
+                self._is_ready = True
+                logger.info("Direct ONNX CPU inference session initialized with %d threads", opts.intra_op_num_threads)
         except Exception as onnx_err:
-            logger.warning("Could not initialize direct ONNX stream session: %s", onnx_err)
+            logger.warning("Could not initialize direct ONNX session: %s", onnx_err)
 
-        try:
-            self._model = self._registry.load_model(model_name)
-            self._is_ready = True
-            logger.info(
-                "DefectDetector initialised — model=%s, device=%s, "
-                "conf=%.2f, tiling=%s (slice=%d, min_dim=%d), thresholds=%s",
-                model_name,
-                device,
-                confidence_threshold,
-                enable_tiling,
-                slice_size,
-                self.tiling_min_dim,
-                self.class_thresholds,
-            )
-        except Exception as exc:
-            logger.error("DefectDetector failed to load model '%s': %s", model_name, exc)
-            self._is_ready = False
+        # Fallback to PyTorch / Ultralytics only if ONNX is not loaded
+        if not self._is_ready:
+            try:
+                self._model = self._registry.load_model(model_name)
+                self._is_ready = True
+                logger.info(
+                    "DefectDetector initialised with PyTorch — model=%s, device=%s, "
+                    "conf=%.2f, tiling=%s (slice=%d, min_dim=%d), thresholds=%s",
+                    model_name,
+                    device,
+                    confidence_threshold,
+                    enable_tiling,
+                    slice_size,
+                    self.tiling_min_dim,
+                    self.class_thresholds,
+                )
+            except Exception as exc:
+                logger.error("DefectDetector failed to load model '%s': %s", model_name, exc)
+                self._is_ready = False
 
     @classmethod
     def _load_calibrated_thresholds(cls) -> dict[str, float]:
@@ -194,6 +197,106 @@ class DefectDetector:
             except Exception as err:
                 logger.warning("Could not read class_thresholds.json: %s", err)
         return cls.DEFAULT_CLASS_THRESHOLDS.copy()
+
+    # ------------------------------------------------------------------
+    # Inference Engine (ONNX CPU & PyTorch Fallback)
+    # ------------------------------------------------------------------
+
+    def _run_onnx_inference(
+        self,
+        image: np.ndarray,
+        effective_conf: float,
+        target_size: tuple[int, int] = (640, 640),
+    ) -> list[Detection]:
+        """Execute aspect-preserving ONNX inference purely in C++/CPU memory.
+
+        Bypasses PyTorch and Ultralytics completely for low-memory production environments.
+        """
+        if self._onnx_session is None:
+            return []
+
+        from backend.services.knowledge_service import get_defect_knowledge
+
+        img_h, img_w = image.shape[:2]
+        target_w, target_h = target_size
+        scale = min(target_w / float(img_w), target_h / float(img_h))
+        new_w = int(round(img_w * scale))
+        new_h = int(round(img_h * scale))
+        resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+        canvas = np.full((target_h, target_w, 3), 114, dtype=np.uint8)
+        pad_top = (target_h - new_h) // 2
+        pad_left = (target_w - new_w) // 2
+        canvas[pad_top : pad_top + new_h, pad_left : pad_left + new_w] = resized
+
+        blob = cv2.dnn.blobFromImage(canvas, 1.0 / 255.0, (target_w, target_h), swapRB=True)
+        out = self._onnx_session.run(None, {self._onnx_input_name: blob})[0][0]
+        boxes_raw = out[:4].T
+        scores_raw = out[4:].T
+        class_ids = np.argmax(scores_raw, axis=1)
+        confidences = np.max(scores_raw, axis=1)
+        mask = confidences >= effective_conf
+        boxes_f = boxes_raw[mask]
+        confs_f = confidences[mask]
+        cids_f = class_ids[mask]
+
+        boxes_xywh = []
+        for b in boxes_f:
+            cx, cy, w, h = b
+            orig_cx = (cx - pad_left) / scale
+            orig_cy = (cy - pad_top) / scale
+            orig_w = w / scale
+            orig_h = h / scale
+            x = int(orig_cx - orig_w / 2.0)
+            y = int(orig_cy - orig_h / 2.0)
+            boxes_xywh.append([x, y, int(orig_w), int(orig_h)])
+
+        dets: list[Detection] = []
+        if boxes_xywh:
+            indices = cv2.dnn.NMSBoxes(boxes_xywh, confs_f.tolist(), effective_conf, 0.45)
+            total_area = float(img_w * img_h)
+            for idx in indices:
+                i = int(idx)
+                cid = int(cids_f[i])
+                cname = DEFECT_CLASSES.get(cid, "defect")
+                conf = float(confs_f[i])
+                c_thresh = self.class_thresholds.get(cname.lower(), self.confidence_threshold)
+                if effective_conf is not None and effective_conf != self.confidence_threshold:
+                    ratio = effective_conf / max(0.01, self.confidence_threshold)
+                    c_thresh = min(0.95, max(0.10, c_thresh * ratio))
+                if conf >= c_thresh:
+                    bx, by, bw, bh = boxes_xywh[i]
+                    x1 = max(0.0, float(bx))
+                    y1 = max(0.0, float(by))
+                    x2 = min(float(img_w), float(bx + bw))
+                    y2 = min(float(img_h), float(by + bh))
+                    area_ratio = float((x2 - x1) * (y2 - y1)) / total_area if total_area > 0 else 0.0
+                    sev = self._postprocessor.classify_severity(
+                        conf,
+                        area_ratio,
+                        class_name=cname,
+                        domain_trust="HIGH",
+                        source="yolo",
+                    )
+                    k_info = get_defect_knowledge(cname) or {}
+                    det_item = Detection(
+                        bbox=(x1, y1, x2, y2),
+                        confidence=conf,
+                        class_id=cid,
+                        class_name=cname,
+                        severity=sev,
+                        area_ratio=area_ratio,
+                        description="",
+                        source="yolo",
+                        definition=k_info.get("definition"),
+                        cause=k_info.get("cause"),
+                        action=k_info.get("action"),
+                        visual_look=k_info.get("visual_look"),
+                        risk=k_info.get("risk"),
+                    )
+                    det_item.description = self._postprocessor.generate_description(det_item)
+                    dets.append(det_item)
+        return dets
 
     # ------------------------------------------------------------------
     # Public API
@@ -225,7 +328,7 @@ class DefectDetector:
         Returns:
             Dictionary with detections, summary, annotated_image, latency, and metadata.
         """
-        if not self._is_ready or self._model is None:
+        if not self._is_ready or (self._model is None and self._onnx_session is None):
             raise RuntimeError("DefectDetector is not ready — model failed to load.")
 
         total_start: float = time.perf_counter()
@@ -249,77 +352,7 @@ class DefectDetector:
 
             if self._onnx_session is not None:
                 # Direct C++ ONNX Inference for edge streaming (<25ms) with aspect-preserving letterboxing
-                target_w, target_h = 480, 480
-                scale = min(target_w / float(img_w), target_h / float(img_h))
-                new_w = int(round(img_w * scale))
-                new_h = int(round(img_h * scale))
-                resized = cv2.resize(original_image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-
-                canvas = np.full((target_h, target_w, 3), 114, dtype=np.uint8)
-                pad_top = (target_h - new_h) // 2
-                pad_left = (target_w - new_w) // 2
-                canvas[pad_top : pad_top + new_h, pad_left : pad_left + new_w] = resized
-
-                blob = cv2.dnn.blobFromImage(canvas, 1.0 / 255.0, (target_w, target_h), swapRB=True)
-                out = self._onnx_session.run(None, {self._onnx_input_name: blob})[0][0]
-                boxes_raw = out[:4].T
-                scores_raw = out[4:].T
-                class_ids = np.argmax(scores_raw, axis=1)
-                confidences = np.max(scores_raw, axis=1)
-                mask = confidences >= effective_conf
-                boxes_f = boxes_raw[mask]
-                confs_f = confidences[mask]
-                cids_f = class_ids[mask]
-
-                boxes_xywh = []
-                for b in boxes_f:
-                    cx, cy, w, h = b
-                    orig_cx = (cx - pad_left) / scale
-                    orig_cy = (cy - pad_top) / scale
-                    orig_w = w / scale
-                    orig_h = h / scale
-                    x = int(orig_cx - orig_w / 2.0)
-                    y = int(orig_cy - orig_h / 2.0)
-                    boxes_xywh.append([x, y, int(orig_w), int(orig_h)])
-
-                if boxes_xywh:
-                    indices = cv2.dnn.NMSBoxes(boxes_xywh, confs_f.tolist(), effective_conf, 0.45)
-                    total_area = float(img_w * img_h)
-                    for idx in indices:
-                        i = int(idx)
-                        cid = int(cids_f[i])
-                        cname = DEFECT_CLASSES.get(cid, "defect")
-                        conf = float(confs_f[i])
-                        c_thresh = self.class_thresholds.get(cname.lower(), self.confidence_threshold)
-                        if confidence_threshold is not None:
-                            ratio = confidence_threshold / max(0.01, self.confidence_threshold)
-                            c_thresh = min(0.95, max(0.10, c_thresh * ratio))
-                        if conf >= c_thresh:
-                            bx, by, bw, bh = boxes_xywh[i]
-                            x1 = max(0.0, float(bx))
-                            y1 = max(0.0, float(by))
-                            x2 = min(float(img_w), float(bx + bw))
-                            y2 = min(float(img_h), float(by + bh))
-                            area_ratio = float((x2 - x1) * (y2 - y1)) / total_area if total_area > 0 else 0.0
-                            sev = self._postprocessor.classify_severity(
-                                conf,
-                                area_ratio,
-                                class_name=cname,
-                                domain_trust="HIGH",
-                                source="yolo",
-                            )
-                            det_item = Detection(
-                                bbox=(x1, y1, x2, y2),
-                                confidence=conf,
-                                class_id=cid,
-                                class_name=cname,
-                                severity=sev,
-                                area_ratio=area_ratio,
-                                description="",
-                                source="yolo",
-                            )
-                            det_item.description = self._postprocessor.generate_description(det_item)
-                            stream_dets.append(det_item)
+                stream_dets = self._run_onnx_inference(original_image, effective_conf, target_size=(480, 480))
             else:
                 scale, pad_left, pad_top = self._preprocessor.get_letterbox_params(image_shape[:2])
                 preprocessed: np.ndarray = self._preprocessor.resize(original_image)
@@ -430,27 +463,32 @@ class DefectDetector:
             slice_pairs: List[Tuple[ImageSlice, List[Dict[str, Any]]]] = []
 
             # Batch process slice patches
-            # Preprocess each slice patch with aspect-ratio preserving letterbox
-            preprocessed_patches = [self._preprocessor.resize(sl.image) for sl in slices]
-            try:
-                batch_preds = self._model.predict(
-                    source=preprocessed_patches,
-                    device=self.device,
-                    verbose=False,
-                    conf=self.confidence_threshold,
-                )
-            except Exception as exc:
-                logger.exception("YOLO batched slice inference failed: %s", exc)
-                raise RuntimeError(f"Tiled inference failed: {exc}") from exc
+            if self._onnx_session is not None:
+                for sl in slices:
+                    slice_dets = self._run_onnx_inference(sl.image, effective_conf, target_size=(640, 640))
+                    slice_pairs.append((sl, [asdict(d) for d in slice_dets]))
+            else:
+                # Preprocess each slice patch with aspect-ratio preserving letterbox
+                preprocessed_patches = [self._preprocessor.resize(sl.image) for sl in slices]
+                try:
+                    batch_preds = self._model.predict(
+                        source=preprocessed_patches,
+                        device=self.device,
+                        verbose=False,
+                        conf=self.confidence_threshold,
+                    )
+                except Exception as exc:
+                    logger.exception("YOLO batched slice inference failed: %s", exc)
+                    raise RuntimeError(f"Tiled inference failed: {exc}") from exc
 
-            for sl, pred in zip(slices, batch_preds):
-                scale_sl, pad_l_sl, pad_t_sl = self._preprocessor.get_letterbox_params(sl.image.shape[:2])
-                slice_dets = self._postprocessor.process(
-                    pred,
-                    image_shape=sl.image.shape,
-                    letterbox_params=(scale_sl, pad_l_sl, pad_t_sl),
-                )
-                slice_pairs.append((sl, [asdict(d) for d in slice_dets]))
+                for sl, pred in zip(slices, batch_preds):
+                    scale_sl, pad_l_sl, pad_t_sl = self._preprocessor.get_letterbox_params(sl.image.shape[:2])
+                    slice_dets = self._postprocessor.process(
+                        pred,
+                        image_shape=sl.image.shape,
+                        letterbox_params=(scale_sl, pad_l_sl, pad_t_sl),
+                    )
+                    slice_pairs.append((sl, [asdict(d) for d in slice_dets]))
 
             inference_time_ms = (time.perf_counter() - inference_start) * 1000.0
 
@@ -481,27 +519,31 @@ class DefectDetector:
                 )
 
         else:
-            # Standard single-pass letterboxed inference for standard/low resolutions
-            scale, pad_left, pad_top = self._preprocessor.get_letterbox_params(image_shape[:2])
-            preprocessed: np.ndarray = self._preprocessor.resize(original_image)
+            # Standard single-pass inference
             inference_start = time.perf_counter()
-            try:
-                results = self._model.predict(
-                    source=preprocessed,
-                    device=self.device,
-                    verbose=False,
-                    conf=self.confidence_threshold,
+            if self._onnx_session is not None:
+                detections = self._run_onnx_inference(original_image, effective_conf, target_size=(640, 640))
+            else:
+                scale, pad_left, pad_top = self._preprocessor.get_letterbox_params(image_shape[:2])
+                preprocessed: np.ndarray = self._preprocessor.resize(original_image)
+                try:
+                    results = self._model.predict(
+                        source=preprocessed,
+                        device=self.device,
+                        verbose=False,
+                        conf=self.confidence_threshold,
+                    )
+                except Exception as exc:
+                    logger.exception("YOLO single-pass inference failed: %s", exc)
+                    raise RuntimeError(f"Model inference failed: {exc}") from exc
+
+                detections = self._postprocessor.process(
+                    results[0],
+                    image_shape=image_shape,
+                    letterbox_params=(scale, pad_left, pad_top),
                 )
-            except Exception as exc:
-                logger.exception("YOLO single-pass inference failed: %s", exc)
-                raise RuntimeError(f"Model inference failed: {exc}") from exc
 
             inference_time_ms = (time.perf_counter() - inference_start) * 1000.0
-            detections = self._postprocessor.process(
-                results[0],
-                image_shape=image_shape,
-                letterbox_params=(scale, pad_left, pad_top),
-            )
 
         # 3. Domain Guard Assessment & Out-of-Domain Calibration
         raw_yolo_confidences = [d.confidence for d in detections if getattr(d, "source", "yolo") == "yolo"]
@@ -862,8 +904,8 @@ class DefectDetector:
         return annotated
 
     def is_ready(self) -> bool:
-        """Return True if detector is initialized and model is loaded."""
-        return self._is_ready and self._model is not None
+        """Return True if detector is initialized and model is loaded (ONNX or PyTorch)."""
+        return self._is_ready and (self._model is not None or self._onnx_session is not None)
 
     def get_model_info(self) -> dict[str, Any]:
         """Return detector configuration and model metadata."""

@@ -18,14 +18,7 @@ os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "matpl
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
-
-try:
-    import torch
-    torch.set_num_threads(1)
-    if hasattr(torch, "set_num_interop_threads"):
-        torch.set_num_interop_threads(1)
-except Exception:
-    pass
+os.environ.setdefault("ONNX_NUM_THREADS", "1")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -73,10 +66,11 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Configure CORS for frontend access
+# Configure CORS for frontend access (supporting localhost and Firebase Hosting domains)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"^https://.*\.web\.app$|^https://.*\.firebaseapp\.com$|^https://.*\.onrender\.com$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

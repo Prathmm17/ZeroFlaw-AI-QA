@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: zeroflaw-ai-qa
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ONNX_NUM_THREADS
+        value: "1"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
+      - key: MODEL_NAME
+        value: best.onnx
+      - key: ENABLE_TILING
+        value: "true"
+      - key: CONFIDENCE_THRESHOLD
+        value: "0.20"
+

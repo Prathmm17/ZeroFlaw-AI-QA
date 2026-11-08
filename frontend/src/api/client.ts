@@ -9,8 +9,19 @@ import {
   SystemHealth,
 } from '../types';
 
+const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+const baseURL = apiBase ? (apiBase.endsWith('/api') ? apiBase : `${apiBase}/api`) : '/api';
+
+export function resolveMediaUrl(path: string): string {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const hostUrl = apiBase ? apiBase.replace(/\/api\/?$/, '') : '';
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return hostUrl ? `${hostUrl}${cleanPath}` : cleanPath;
+}
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL,
   timeout: 30000,
 });
 
@@ -93,7 +104,7 @@ export const apiClient = {
   },
 
   get8DReportPdfUrl(inspectionId: number): string {
-    return `/api/detect/${inspectionId}/8d-report/pdf`;
+    return resolveMediaUrl(`/api/detect/${inspectionId}/8d-report/pdf`);
   },
 
   // Analytics

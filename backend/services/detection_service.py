@@ -8,6 +8,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import threading
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -24,9 +25,10 @@ from ml.detector import DefectDetector
 
 logger = logging.getLogger(__name__)
 
-# Global singleton arbitrator & detector instances
+# Global singleton arbitrator & detector instances and inference concurrency lock
 _detector_instance: Optional[DefectDetector] = None
 _arbitrator_instance: Optional[ProductionArbitrator] = None
+_INFERENCE_LOCK: threading.Lock = threading.Lock()
 
 
 def get_detector() -> DefectDetector:
@@ -88,8 +90,9 @@ class DetectionService:
         """
         arbitrator = get_arbitrator()
         
-        # 1. Run Two-Tier Production Arbitration pipeline
-        arb_res = arbitrator.arbitrate(image_data, filename=filename, deep_verify=deep_verify)
+        # 1. Run Two-Tier Production Arbitration pipeline (thread-safe serialization for low-memory environments)
+        with _INFERENCE_LOCK:
+            arb_res = arbitrator.arbitrate(image_data, filename=filename, deep_verify=deep_verify)
         
         detections: List[Dict[str, Any]] = [
             {

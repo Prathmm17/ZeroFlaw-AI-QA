@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Inspection, Defect, EightDReport } from '../types';
 import { SeverityBadge } from './SeverityBadge';
-import { apiClient } from '../api/client';
+import { apiClient, resolveMediaUrl } from '../api/client';
 
 interface DefectViewerProps {
   inspection: Inspection;
@@ -211,7 +211,7 @@ export const DefectViewer: React.FC<DefectViewerProps> = ({ inspection }) => {
     }
   };
 
-  const currentImageUrl = showAnnotated ? currentInspection.result_url : currentInspection.original_url;
+  const currentImageUrl = resolveMediaUrl(showAnnotated ? currentInspection.result_url : currentInspection.original_url);
   const isSpecimenCalibrated = Boolean(
     currentInspection.is_calibrated ||
       currentInspection.defects.some((d) => d.metrology?.is_calibrated && d.metrology.surface_area_mm2 != null)
@@ -863,7 +863,7 @@ export const DefectViewer: React.FC<DefectViewerProps> = ({ inspection }) => {
             </div>
             <div className="flex items-center space-x-2">
               <a
-                href={`/api/detect/${currentInspection.id}/report/view`}
+                href={resolveMediaUrl(`/api/detect/${currentInspection.id}/report/view`)}
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 rounded-full bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 text-xs font-semibold flex items-center space-x-1.5 transition-all border border-sky-400/30 shadow-[0_0_12px_rgba(56,189,248,0.2)]"
@@ -874,7 +874,7 @@ export const DefectViewer: React.FC<DefectViewerProps> = ({ inspection }) => {
               </a>
               {auditReport && (
                 <a
-                  href={`/api/detect/${currentInspection.id}/8d-report/pdf?inline=true`}
+                  href={resolveMediaUrl(`/api/detect/${currentInspection.id}/8d-report/pdf?inline=true`)}
                   target="_blank"
                   rel="noreferrer"
                   className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 text-xs font-medium flex items-center space-x-1 border border-white/[0.08] transition-all"

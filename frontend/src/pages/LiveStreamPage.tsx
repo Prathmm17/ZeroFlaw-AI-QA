@@ -218,8 +218,16 @@ export const LiveStreamPage: React.FC<LiveStreamPageProps> = ({ onSelectInspecti
       isWaitingForResponse.current = false;
       fpsWindowRef.current = [];
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws/stream`;
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
+      let wsUrl: string;
+      if (apiBase && (apiBase.startsWith('http://') || apiBase.startsWith('https://'))) {
+        const urlObj = new URL(apiBase);
+        const wsProto = urlObj.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${wsProto}//${urlObj.host}/ws/stream`;
+      } else {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.host}/ws/stream`;
+      }
       const ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';
       wsRef.current = ws;

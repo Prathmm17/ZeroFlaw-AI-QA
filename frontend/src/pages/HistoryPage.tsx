@@ -10,7 +10,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { apiClient, resolveMediaUrl } from '../api/client';
 import { DefectViewer } from '../components/DefectViewer';
 import { SeverityBadge } from '../components/SeverityBadge';
 import { Inspection } from '../types';
@@ -257,7 +257,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectInspection }) 
                   </button>
                 )}
                 <a
-                  href={`/api/detect/${selectedInspection.id}/report/view`}
+                  href={resolveMediaUrl(`/api/detect/${selectedInspection.id}/report/view`)}
                   target="_blank"
                   rel="noreferrer"
                   className="px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 text-xs font-medium flex items-center space-x-1.5 border border-white/[0.08] transition-all"
