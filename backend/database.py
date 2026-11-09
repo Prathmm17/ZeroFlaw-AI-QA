@@ -163,6 +163,89 @@ def init_db() -> None:
         except Exception:
             pass
 
+    # Automatically seed demonstration baseline if database is empty (e.g. after container restart)
+    try:
+        with SessionLocal() as session:
+            if session.query(Inspection).count() == 0:
+                sample_files = sorted(list(settings.SAMPLES_DIR.glob("*.png")) + list(settings.SAMPLES_DIR.glob("*.jpg")))
+                if sample_files:
+                    f1 = sample_files[0]
+                    f2 = sample_files[min(1, len(sample_files) - 1)]
+                    insp1 = Inspection(
+                        source="sample",
+                        filename=f1.name,
+                        original_path=str(f1),
+                        result_path=str(f1),
+                        total_defects=1,
+                        critical_count=0,
+                        major_count=1,
+                        minor_count=0,
+                        max_severity="major",
+                        status="flagged",
+                        inference_time_ms=85.0,
+                        total_time_ms=110.0,
+                        notes="Automated baseline specimen inspection",
+                        domain_trust="HIGH",
+                    )
+                    session.add(insp1)
+                    session.flush()
+
+                    session.add(
+                        DefectRecord(
+                            inspection_id=insp1.id,
+                            class_id=1,
+                            class_name="crazing",
+                            confidence=0.88,
+                            severity="major",
+                            bbox_x1=100.0,
+                            bbox_y1=120.0,
+                            bbox_x2=320.0,
+                            bbox_y2=380.0,
+                            area_ratio=0.035,
+                            description="Major crazing defect detected on specimen surface",
+                            source="yolo",
+                        )
+                    )
+
+                    insp2 = Inspection(
+                        source="sample",
+                        filename=f2.name,
+                        original_path=str(f2),
+                        result_path=str(f2),
+                        total_defects=2,
+                        critical_count=0,
+                        major_count=0,
+                        minor_count=2,
+                        max_severity="minor",
+                        status="passed",
+                        inference_time_ms=92.0,
+                        total_time_ms=120.0,
+                        notes="Factory baseline specimen inspection",
+                        domain_trust="HIGH",
+                    )
+                    session.add(insp2)
+                    session.flush()
+
+                    session.add(
+                        DefectRecord(
+                            inspection_id=insp2.id,
+                            class_id=0,
+                            class_name="crazing",
+                            confidence=0.45,
+                            severity="minor",
+                            bbox_x1=210.0,
+                            bbox_y1=150.0,
+                            bbox_x2=350.0,
+                            bbox_y2=240.0,
+                            area_ratio=0.012,
+                            description="Minor surface crazing fissure",
+                            source="yolo",
+                        )
+                    )
+                    session.commit()
+    except Exception:
+        pass
+
 
 def get_db() -> Generator[Session, None, None]:
     """Dependency that provides an active database session."""

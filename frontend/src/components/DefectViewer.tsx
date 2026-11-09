@@ -8,6 +8,7 @@ import {
   Info,
   ShieldCheck,
   AlertCircle,
+  AlertTriangle,
   Sparkles,
   FileText,
   Wrench,
@@ -52,6 +53,8 @@ export const DefectViewer: React.FC<DefectViewerProps> = ({ inspection }) => {
   // Overlay & image bounds for defect box highlight
   const [naturalDimensions, setNaturalDimensions] = useState<{ width: number; height: number }>({ width: 640, height: 640 });
   const [imageContentBounds, setImageContentBounds] = useState<{ left: number; top: number; width: number; height: number }>({ left: 0, top: 0, width: 0, height: 0 });
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   const imgRef = useRef<HTMLImageElement>(null);
   const svgOverlayRef = useRef<SVGSVGElement>(null);
@@ -95,23 +98,19 @@ export const DefectViewer: React.FC<DefectViewerProps> = ({ inspection }) => {
   useEffect(() => {
     setCurrentInspection(inspection);
     setAuditReport(inspection.audit_report || null);
+    setImageLoaded(false);
+    setImageLoadError(false);
   }, [inspection]);
 
   const handleRunAudit = async () => {
     setIsAuditing(true);
     try {
-      const res = await fetch(`/api/detect/${currentInspection.id}/audit`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        setAuditReport(data);
-        setCurrentInspection((prev) => ({
-          ...prev,
-          audit_report: data,
-        }));
-      } else {
-        const errText = await res.text().catch(() => '');
-        console.error('Audit failed with status:', res.status, errText);
-      }
+      const data = await apiClient.runAudit(currentInspection.id);
+      setAuditReport(data);
+      setCurrentInspection((prev) => ({
+        ...prev,
+        audit_report: data,
+      }));
     } catch (e) {
       console.error('Audit failed', e);
     } finally {
@@ -366,6 +365,46 @@ export const DefectViewer: React.FC<DefectViewerProps> = ({ inspection }) => {
         )}
 
         <div className="relative aspect-video sm:aspect-[4/3] rounded-b-2xl overflow-auto border border-violet-500/20 bg-[#090614]/85 backdrop-blur-3xl flex items-center justify-center group select-none shadow-[0_16px_40px_rgba(0,0,0,0.7)]">
+          {/* Loading spinner while image is fetching */}
+          {!imageLoaded && !imageLoadError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-2 z-10 pointer-events-none">
+              <div className="w-8 h-8 rounded-full border-2 border-sky-400 border-t-transparent animate-spin" />
+              <span className="text-[11px] font-mono text-slate-400">Loading specimen preview...</span>
+            </div>
+          )}
+
+          {/* Ephemeral storage error notice & retry */}
+          {imageLoadError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950/90 backdrop-blur-md space-y-3 z-20">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="max-w-md space-y-1">
+                <h4 className="text-sm font-bold text-white">Specimen Image Unavailable</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Render free tier instances use ephemeral storage; uploaded files are purged when the service restarts.
+                </p>
+              </div>
+              <div className="flex items-center space-x-2 pt-2">
+                <button
+                  onClick={() => {
+                    setImageLoadError(false);
+                    if (imgRef.current) imgRef.current.src = currentImageUrl;
+                  }}
+                  className="px-3.5 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-white text-xs font-semibold border border-white/[0.15] transition-all"
+                >
+                  Retry Load
+                </button>
+                <button
+                  onClick={() => setShowAnnotated((prev) => !prev)}
+                  className="px-3.5 py-1.5 rounded-full bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 text-xs font-semibold border border-sky-400/30 transition-all"
+                >
+                  Switch to {showAnnotated ? 'Raw Original' : 'Annotated Result'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div
             className="relative w-full h-full flex items-center justify-center transition-transform duration-200"
             style={{
@@ -377,8 +416,18 @@ export const DefectViewer: React.FC<DefectViewerProps> = ({ inspection }) => {
               ref={imgRef}
               src={currentImageUrl}
               alt={currentInspection.filename}
-              onLoad={updateImageBounds}
-              className="w-full h-full object-contain pointer-events-none"
+              onLoad={() => {
+                setImageLoaded(true);
+                setImageLoadError(false);
+                updateImageBounds();
+              }}
+              onError={() => {
+                setImageLoadError(true);
+                setImageLoaded(false);
+              }}
+              className={`w-full h-full object-contain pointer-events-none transition-opacity duration-300 ${
+                imageLoaded ? 'opacity-100' : 'opacity-0'
+              }`}
             />
 
           {/* Highlighted Defect Bounding Box SVG Overlay */}

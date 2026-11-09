@@ -27,10 +27,29 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
   const [health, setHealth] = useState<SystemHealth | null>(null);
 
   useEffect(() => {
-    apiClient
-      .getHealth()
-      .then(setHealth)
-      .catch((err) => console.error('Failed to fetch system health:', err));
+    let timer: number | null = null;
+    let isMounted = true;
+
+    const checkHealth = async () => {
+      try {
+        const data = await apiClient.getHealth();
+        if (isMounted) {
+          setHealth(data);
+        }
+      } catch (err) {
+        if (isMounted) {
+          // Retry every 8 seconds until backend wakes up
+          timer = window.setTimeout(checkHealth, 8000);
+        }
+      }
+    };
+
+    checkHealth();
+
+    return () => {
+      isMounted = false;
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   const navItems = [
@@ -103,10 +122,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
 
             {/* System Status Pill - Frosted Glass with Violet Accent */}
             <div className="flex items-center space-x-3">
-              <div className="hidden sm:flex items-center space-x-2 bg-[#120d24]/80 px-3.5 py-1.5 rounded-full border border-violet-500/30 text-xs font-mono backdrop-blur-2xl shadow-inner">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400 animate-pulse" />
+              <div
+                className="hidden sm:flex items-center space-x-2 bg-[#120d24]/80 px-3.5 py-1.5 rounded-full border border-violet-500/30 text-xs font-mono backdrop-blur-2xl shadow-inner"
+                title={health ? 'Backend online (Render CPU)' : 'Connecting to Render free backend...'}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    health
+                      ? 'bg-emerald-400 shadow-sm shadow-emerald-400 animate-pulse'
+                      : 'bg-amber-400 shadow-sm shadow-amber-400 animate-ping'
+                  }`}
+                />
                 <span className="text-violet-300/70">AI:</span>
-                <span className="text-white font-semibold">{health?.model_name || 'best.pt'}</span>
+                <span className="text-white font-semibold">
+                  {health ? health.model_name || 'best.onnx' : 'best.onnx'}
+                </span>
                 <span className="text-violet-400/40">|</span>
                 <Cpu className="w-3.5 h-3.5 text-violet-400" />
                 <span className="text-white/90 uppercase">{health?.device || 'CPU'}</span>

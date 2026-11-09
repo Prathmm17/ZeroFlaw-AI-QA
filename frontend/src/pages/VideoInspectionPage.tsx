@@ -16,7 +16,7 @@ import {
   UploadCloud,
   Video,
 } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { apiClient, isColdStartError, resolveMediaUrl } from '../api/client';
 import { SeverityBadge } from '../components/SeverityBadge';
 import { SeverityLevel, VideoJob, VideoTimelineItem } from '../types';
 
@@ -27,6 +27,7 @@ export const VideoInspectionPage: React.FC = () => {
   const [ambientBoost, setAmbientBoost] = useState<boolean>(true);
 
   const [currentJob, setCurrentJob] = useState<VideoJob | null>(null);
+  const [pastJobs, setPastJobs] = useState<VideoJob[]>([]);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
@@ -44,40 +45,54 @@ export const VideoInspectionPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingTimerRef = useRef<number | null>(null);
 
-  // Poll video status while processing
+  const fetchPastJobs = async () => {
+    try {
+      const jobs = await apiClient.getVideoJobs();
+      setPastJobs(jobs || []);
+    } catch (err) {
+      console.error('Failed to load past video jobs:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPastJobs();
+    return () => {
+      if (pollingTimerRef.current) clearTimeout(pollingTimerRef.current);
+    };
+  }, []);
+
+  // Poll video status while processing with adaptive delay
   const startPollingStatus = (videoId: string) => {
     setIsProcessing(true);
-    if (pollingTimerRef.current) clearInterval(pollingTimerRef.current);
+    if (pollingTimerRef.current) clearTimeout(pollingTimerRef.current);
 
-    pollingTimerRef.current = window.setInterval(async () => {
+    const poll = async () => {
       try {
         const statusData = await apiClient.getVideoStatus(videoId);
         setProgress(statusData.progress || 0);
-        setCurrentStage(statusData.current_stage || 'Processing...');
+        setCurrentStage(statusData.current_stage || 'Processing video frames...');
 
         if (statusData.status === 'completed') {
-          clearInterval(pollingTimerRef.current!);
-          pollingTimerRef.current = null;
           setIsProcessing(false);
+          pollingTimerRef.current = null;
           const fullResult = await apiClient.getVideoResult(videoId);
           setCurrentJob(fullResult);
+          fetchPastJobs();
+          return;
         } else if (statusData.status === 'failed') {
-          clearInterval(pollingTimerRef.current!);
-          pollingTimerRef.current = null;
           setIsProcessing(false);
+          pollingTimerRef.current = null;
           setErrorMessage(statusData.error || 'Video defect processing failed');
+          return;
         }
       } catch (err: any) {
         console.error('Polling error:', err);
       }
-    }, 800);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (pollingTimerRef.current) clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = window.setTimeout(poll, 1200);
     };
-  }, []);
+
+    pollingTimerRef.current = window.setTimeout(poll, 800);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -115,7 +130,11 @@ export const VideoInspectionPage: React.FC = () => {
       startPollingStatus(res.video_id);
     } catch (err: any) {
       setIsUploading(false);
-      setErrorMessage(err.response?.data?.detail || err.message || 'Upload failed');
+      if (isColdStartError(err)) {
+        setErrorMessage('The AI engine is waking up from sleep (Render free tier). Please retry in 15 seconds.');
+      } else {
+        setErrorMessage(err.response?.data?.detail || err.message || 'Upload failed');
+      }
     }
   };
 
@@ -307,6 +326,55 @@ export const VideoInspectionPage: React.FC = () => {
         </div>
       )}
 
+      {/* Past Completed Video Analysis Runs */}
+      {!currentJob && !isProcessing && pastJobs.length > 0 && (
+        <div className="glass-panel p-5 rounded-2xl space-y-3">
+          <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+            <div className="flex items-center space-x-2">
+              <Film className="w-4 h-4 text-sky-400" />
+              <h3 className="text-sm font-bold text-white tracking-wider uppercase">
+                Past Video Analysis Runs ({pastJobs.length})
+              </h3>
+            </div>
+            <button
+              onClick={fetchPastJobs}
+              className="text-xs text-slate-400 hover:text-white flex items-center space-x-1"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Refresh</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {pastJobs.map((job) => (
+              <button
+                key={job.video_id}
+                onClick={async () => {
+                  try {
+                    const fullJob = await apiClient.getVideoResult(job.video_id);
+                    setCurrentJob(fullJob);
+                  } catch (err: any) {
+                    setErrorMessage('Failed to load past video result: file may have expired on ephemeral storage.');
+                  }
+                }}
+                className="p-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07] hover:border-sky-400/40 text-left transition-all space-y-2 group"
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-white font-mono truncate max-w-[12rem]">{job.filename}</span>
+                  <SeverityBadge level={job.max_severity || 'none'} size="sm" />
+                </div>
+                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                  <span>Defects: <strong className="text-rose-400">{job.total_defects_found || 0}</strong></span>
+                  <span>Frames: {job.sampled_frames || 0}</span>
+                </div>
+                <span className="text-[10px] text-sky-400 group-hover:underline font-semibold block pt-1">
+                  View Timeline &amp; Playback →
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Progress & Processing HUD */}
       {isProcessing && (
         <div className="glass-panel p-8 rounded-2xl text-center space-y-4">
@@ -382,10 +450,13 @@ export const VideoInspectionPage: React.FC = () => {
               <div className="relative aspect-video rounded-2xl overflow-hidden border border-violet-500/20 bg-[#090614]/85 backdrop-blur-3xl flex items-center justify-center shadow-[0_16px_40px_rgba(0,0,0,0.7)]">
                 <video
                   ref={videoRef}
-                  src={currentJob.video_url}
+                  src={resolveMediaUrl(currentJob.video_url)}
                   playsInline
                   onTimeUpdate={handleTimeUpdate}
                   onLoadedMetadata={handleLoadedMetadata}
+                  onError={() => {
+                    setErrorMessage('Video streaming error: specimen file may have expired on ephemeral storage or format is incompatible.');
+                  }}
                   className="w-full h-full object-contain"
                 />
 
@@ -563,8 +634,12 @@ export const VideoInspectionPage: React.FC = () => {
                   >
                     <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
                       <img
-                        src={item.thumbnail_url}
+                        src={resolveMediaUrl(item.thumbnail_url)}
                         alt={`Defect at ${item.timestamp_sec}s`}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="%236366f1" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+                        }}
                         className="w-full h-full object-cover"
                       />
                       <span className="absolute bottom-1.5 right-1.5 bg-black/80 px-2 py-0.5 rounded text-[10px] font-mono font-bold text-white">

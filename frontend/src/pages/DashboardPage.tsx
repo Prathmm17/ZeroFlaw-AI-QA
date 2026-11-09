@@ -7,11 +7,12 @@ import {
   CheckCircle,
   Clock,
   Layers,
+  RefreshCw,
   ShieldCheck,
   TrendingUp,
   Zap,
 } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { apiClient, isColdStartError, resolveMediaUrl } from '../api/client';
 import { AlertTicker } from '../components/AlertTicker';
 import { SeverityBadge } from '../components/SeverityBadge';
 import { StatsCard } from '../components/StatsCard';
@@ -32,22 +33,54 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const [samples, setSamples] = useState<string[]>([]);
   const [inspectingSample, setInspectingSample] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isWakingUp, setIsWakingUp] = useState(false);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [overviewData, historyData, alertsData, sampleFiles] = await Promise.all([
+      setErrorMsg(null);
+      setIsWakingUp(false);
+
+      const [overviewRes, historyRes, alertsRes, samplesRes] = await Promise.allSettled([
         apiClient.getAnalyticsOverview(),
         apiClient.getHistory(1, 5),
         apiClient.getAlerts(false),
         apiClient.getSamples(),
       ]);
-      setAnalytics(overviewData);
-      setRecentInspections(historyData.items);
-      setAlerts(alertsData);
-      setSamples(sampleFiles.slice(0, 6));
+
+      let anySuccess = false;
+      if (overviewRes.status === 'fulfilled') {
+        setAnalytics(overviewRes.value);
+        anySuccess = true;
+      }
+      if (historyRes.status === 'fulfilled') {
+        setRecentInspections(historyRes.value.items || []);
+        anySuccess = true;
+      }
+      if (alertsRes.status === 'fulfilled') {
+        setAlerts(alertsRes.value || []);
+        anySuccess = true;
+      }
+      if (samplesRes.status === 'fulfilled') {
+        setSamples((samplesRes.value || []).slice(0, 6));
+        anySuccess = true;
+      }
+
+      if (!anySuccess) {
+        const reason = (overviewRes as PromiseRejectedResult).reason;
+        if (isColdStartError(reason)) {
+          setIsWakingUp(true);
+          setErrorMsg(
+            'The AI backend is warming up from sleep (Render free tier cold start ~30–50s). Click Retry to reload.'
+          );
+        } else {
+          setErrorMsg('Unable to retrieve dashboard telemetry from AI server. Please retry.');
+        }
+      }
     } catch (err) {
       console.error('Error loading dashboard data:', err);
+      setErrorMsg('Failed to load dashboard telemetry.');
     } finally {
       setLoading(false);
     }
@@ -89,32 +122,67 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         }}
       />
 
+      {/* Cold Start / Error Notification Banner */}
+      {errorMsg && (
+        <div className="bg-amber-950/70 border border-amber-500/50 p-4 rounded-2xl text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 backdrop-blur-xl shadow-lg">
+          <div className="flex items-center space-x-2.5">
+            <AlertTriangle className={`w-4 h-4 shrink-0 text-amber-400 ${isWakingUp ? 'animate-spin' : ''}`} />
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            onClick={() => loadDashboardData()}
+            disabled={loading}
+            className="self-end sm:self-auto px-4 py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/40 text-xs font-semibold flex items-center space-x-1.5 transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>{loading ? 'Connecting...' : 'Retry Now'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Header Bar with Manual Refresh */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-tight">Factory Quality Operations Center</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Real-time edge inspection telemetry &amp; defect capability</p>
+        </div>
+        <button
+          onClick={() => loadDashboardData()}
+          disabled={loading}
+          className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs text-slate-300 hover:text-white transition-all backdrop-blur-xl disabled:opacity-50"
+          title="Refresh metrics from Render API"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <span>{loading ? 'Refreshing...' : 'Refresh Metrics'}</span>
+        </button>
+      </div>
+
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Overall Line Yield"
-          value={`${yieldRate}%`}
+          value={loading && !analytics ? '...' : `${yieldRate}%`}
           subtitle="Target threshold: ≥ 98.0%"
           icon={ShieldCheck}
           variant={parseFloat(yieldRate) >= 95.0 ? 'emerald' : parseFloat(yieldRate) >= 80.0 ? 'amber' : 'rose'}
         />
         <StatsCard
           title="Total Inspections"
-          value={analytics?.total_inspections || 0}
+          value={loading && !analytics ? '...' : analytics?.total_inspections || 0}
           subtitle={`${analytics?.defect_free_inspections || 0} defect-free components`}
           icon={Activity}
           variant="blue"
         />
         <StatsCard
           title="Defects Detected"
-          value={analytics?.total_defects || 0}
+          value={loading && !analytics ? '...' : analytics?.total_defects || 0}
           subtitle={`Defect rate: ${analytics?.defect_rate_percentage || 0}%`}
           icon={AlertTriangle}
           variant={analytics && analytics.critical_defects_count > 0 ? 'rose' : 'amber'}
         />
         <StatsCard
           title="Inference Speed"
-          value={`${analytics?.avg_inference_time_ms.toFixed(0) || 0} ms`}
+          value={loading && !analytics ? '...' : `${analytics?.avg_inference_time_ms.toFixed(0) || 0} ms`}
           subtitle="Real-time edge throughput"
           icon={Zap}
           variant="blue"
@@ -144,32 +212,50 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3.5">
-          {samples.map((sample) => (
-            <button
-              key={sample}
-              onClick={() => handleQuickInspect(sample)}
-              disabled={inspectingSample === sample}
-              className={`p-3 rounded-2xl border text-left transition-all duration-300 ${
-                inspectingSample === sample
-                  ? 'bg-violet-600/30 border-violet-400/60 ring-2 ring-violet-400/50 shadow-lg shadow-violet-500/30'
-                  : 'bg-white/[0.03] border-white/[0.08] hover:border-violet-400/40 hover:bg-[#140e28]/70 hover:shadow-xl hover:shadow-violet-500/20 hover:-translate-y-0.5'
-              }`}
-            >
-              <div className="aspect-square rounded-xl bg-black/50 overflow-hidden mb-2.5 flex items-center justify-center ring-1 ring-white/10">
-                <img
-                  src={`/data/samples/${sample}`}
-                  alt={sample}
-                  className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                />
-              </div>
-              <p className="text-[11px] font-mono text-slate-200 truncate font-medium">{sample}</p>
-              <span className="text-[10px] text-violet-300 font-semibold mt-1 block">
-                {inspectingSample === sample ? 'Analyzing...' : 'Click to Inspect →'}
-              </span>
-            </button>
-          ))}
-        </div>
+        {samples.length === 0 ? (
+          <div className="py-10 text-center glass-panel rounded-2xl border border-white/[0.08] p-4 text-xs text-slate-400 font-mono space-y-2">
+            <p>{loading ? 'Connecting to AI Engine on Render...' : 'Catalog samples loading...'}</p>
+            {!loading && (
+              <button
+                onClick={() => loadDashboardData()}
+                className="px-3 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-sky-400 text-xs font-semibold"
+              >
+                Reload Samples
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3.5">
+            {samples.map((sample) => (
+              <button
+                key={sample}
+                onClick={() => handleQuickInspect(sample)}
+                disabled={inspectingSample === sample}
+                className={`p-3 rounded-2xl border text-left transition-all duration-300 ${
+                  inspectingSample === sample
+                    ? 'bg-violet-600/30 border-violet-400/60 ring-2 ring-violet-400/50 shadow-lg shadow-violet-500/30'
+                    : 'bg-white/[0.03] border-white/[0.08] hover:border-violet-400/40 hover:bg-[#140e28]/70 hover:shadow-xl hover:shadow-violet-500/20 hover:-translate-y-0.5'
+                }`}
+              >
+                <div className="aspect-square rounded-xl bg-black/50 overflow-hidden mb-2.5 flex items-center justify-center ring-1 ring-white/10">
+                  <img
+                    src={resolveMediaUrl(`/data/samples/${sample}`)}
+                    alt={sample}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="%236366f1" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+                    }}
+                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                  />
+                </div>
+                <p className="text-[11px] font-mono text-slate-200 truncate font-medium">{sample}</p>
+                <span className="text-[10px] text-violet-300 font-semibold mt-1 block">
+                  {inspectingSample === sample ? 'Analyzing...' : 'Click to Inspect →'}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Recent Inspections Table */}

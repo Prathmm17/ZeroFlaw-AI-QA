@@ -10,7 +10,7 @@ import {
   Info,
   ShieldAlert,
 } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { apiClient, isColdStartError, resolveMediaUrl } from '../api/client';
 import { DefectViewer } from '../components/DefectViewer';
 import { Inspection } from '../types';
 
@@ -53,7 +53,11 @@ export const InspectorPage: React.FC<InspectorPageProps> = ({
       onInspectionLoaded(res);
     } catch (err: any) {
       console.error('Upload failed:', err);
-      setErrorMsg(err.response?.data?.detail || 'Failed to process and inspect image.');
+      if (isColdStartError(err)) {
+        setErrorMsg('The AI backend is warming up from sleep (Render free tier). Please retry in 15 seconds.');
+      } else {
+        setErrorMsg(err.response?.data?.detail || err.message || 'Failed to process and inspect image.');
+      }
     } finally {
       setLoading(false);
     }
@@ -68,7 +72,11 @@ export const InspectorPage: React.FC<InspectorPageProps> = ({
       onInspectionLoaded(res);
     } catch (err: any) {
       console.error('Sample inspect failed:', err);
-      setErrorMsg(err.response?.data?.detail || 'Failed to inspect sample.');
+      if (isColdStartError(err)) {
+        setErrorMsg('The AI backend is warming up from sleep (Render free tier). Please retry in 15 seconds.');
+      } else {
+        setErrorMsg(err.response?.data?.detail || err.message || 'Failed to inspect sample.');
+      }
     } finally {
       setLoading(false);
     }
@@ -185,25 +193,35 @@ export const InspectorPage: React.FC<InspectorPageProps> = ({
           </p>
 
           <div className="grid grid-cols-2 gap-2.5 max-h-48 overflow-y-auto pr-1">
-            {samples.map((sample) => (
-              <button
-                key={sample}
-                onClick={() => handleSampleInspect(sample)}
-                disabled={loading}
-                className={`flex items-center space-x-2.5 p-2 rounded-xl border text-left text-xs transition-all duration-200 ${
-                  selectedSample === sample
-                    ? 'bg-gradient-to-r from-violet-600/30 to-purple-600/30 border-violet-400/60 text-white ring-1 ring-violet-400/50 shadow-md shadow-violet-500/25 font-semibold'
-                    : 'bg-white/[0.03] border-white/[0.08] text-slate-300 hover:border-violet-400/40 hover:bg-[#140e28]/60'
-                }`}
-              >
-                <img
-                  src={`/data/samples/${sample}`}
-                  alt={sample}
-                  className="w-8 h-8 rounded-lg object-cover bg-black/60 shrink-0 ring-1 ring-white/10"
-                />
-                <span className="font-mono truncate">{sample}</span>
-              </button>
-            ))}
+            {samples.length === 0 ? (
+              <div className="col-span-2 py-6 text-center text-xs text-slate-400 italic font-mono">
+                Catalog loading from AI server...
+              </div>
+            ) : (
+              samples.map((sample) => (
+                <button
+                  key={sample}
+                  onClick={() => handleSampleInspect(sample)}
+                  disabled={loading}
+                  className={`flex items-center space-x-2.5 p-2 rounded-xl border text-left text-xs transition-all duration-200 ${
+                    selectedSample === sample
+                      ? 'bg-gradient-to-r from-violet-600/30 to-purple-600/30 border-violet-400/60 text-white ring-1 ring-violet-400/50 shadow-md shadow-violet-500/25 font-semibold'
+                      : 'bg-white/[0.03] border-white/[0.08] text-slate-300 hover:border-violet-400/40 hover:bg-[#140e28]/60'
+                  }`}
+                >
+                  <img
+                    src={resolveMediaUrl(`/data/samples/${sample}`)}
+                    alt={sample}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="%236366f1" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+                    }}
+                    className="w-8 h-8 rounded-lg object-cover bg-black/60 shrink-0 ring-1 ring-white/10"
+                  />
+                  <span className="font-mono truncate">{sample}</span>
+                </button>
+              ))
+            )}
           </div>
 
           <div className="pt-2">

@@ -65,3 +65,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Scratch & Firebase local cache
+scratch/
+.firebase/
+

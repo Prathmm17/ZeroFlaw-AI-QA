@@ -34,15 +34,31 @@ export const AnalyticsPage: React.FC = () => {
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [trends, setTrends] = useState<AnalyticsTrends | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const loadData = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const [ovRes, trRes] = await Promise.allSettled([
+        apiClient.getAnalyticsOverview(),
+        apiClient.getAnalyticsTrends(7),
+      ]);
+      if (ovRes.status === 'fulfilled') setOverview(ovRes.value);
+      if (trRes.status === 'fulfilled') setTrends(trRes.value);
+      if (ovRes.status === 'rejected' && trRes.status === 'rejected') {
+        setErrorMsg('Failed to load quality analytics from AI engine. Please retry.');
+      }
+    } catch (err) {
+      console.error('Failed to load analytics:', err);
+      setErrorMsg('Failed to load analytics telemetry.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    Promise.all([apiClient.getAnalyticsOverview(), apiClient.getAnalyticsTrends(7)])
-      .then(([ov, tr]) => {
-        setOverview(ov);
-        setTrends(tr);
-      })
-      .catch((err) => console.error('Failed to load analytics:', err))
-      .finally(() => setLoading(false));
+    loadData();
   }, []);
 
   const SEVERITY_COLORS = {
@@ -96,12 +112,33 @@ export const AnalyticsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-white tracking-tight">Executive Quality Intelligence &amp; Analytics</h2>
-        <p className="text-xs text-slate-400 mt-1">
-          Statistical process control (SPC), defect Pareto distributions, and continuous manufacturing yield trends.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-tight">Executive Quality Intelligence &amp; Analytics</h2>
+          <p className="text-xs text-slate-400 mt-1">
+            Statistical process control (SPC), defect Pareto distributions, and continuous manufacturing yield trends.
+          </p>
+        </div>
+        <button
+          onClick={loadData}
+          disabled={loading}
+          className="self-start sm:self-auto flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs text-slate-300 hover:text-white transition-all backdrop-blur-xl disabled:opacity-50"
+        >
+          <span>{loading ? 'Refreshing...' : 'Refresh Telemetry'}</span>
+        </button>
       </div>
+
+      {errorMsg && (
+        <div className="bg-rose-950/60 border border-rose-500/40 p-4 rounded-2xl text-xs text-rose-200 flex items-center justify-between">
+          <span>{errorMsg}</span>
+          <button
+            onClick={loadData}
+            className="px-3 py-1 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-semibold text-xs border border-rose-400/30"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Top Level KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

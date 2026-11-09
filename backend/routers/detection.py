@@ -35,8 +35,29 @@ router = APIRouter(prefix="/api/detect", tags=["Defect Detection"])
 
 def _to_inspection_response(inspection: Inspection) -> InspectionResponse:
     """Format an SQLAlchemy Inspection model into an InspectionResponse Pydantic schema."""
-    orig_name = Path(inspection.original_path).name
-    res_name = Path(inspection.result_path).name
+    orig_path = Path(inspection.original_path) if inspection.original_path else None
+    res_path = Path(inspection.result_path) if inspection.result_path else None
+
+    orig_name = orig_path.name if orig_path else "specimen.jpg"
+    res_name = res_path.name if res_path else "result.jpg"
+
+    # Resolve original image URL: check samples dir first if it came from sample catalog
+    if (settings.SAMPLES_DIR / orig_name).is_file():
+        resolved_orig_url = f"/data/samples/{orig_name}"
+    elif (settings.UPLOADS_DIR / orig_name).is_file():
+        resolved_orig_url = f"/data/uploads/{orig_name}"
+    elif (settings.SAMPLES_DIR / inspection.filename).is_file():
+        resolved_orig_url = f"/data/samples/{inspection.filename}"
+    else:
+        resolved_orig_url = f"/data/uploads/{orig_name}"
+
+    # Resolve result annotated image URL: if purged by restart, fall back to resolved_orig_url
+    if res_path and res_path.is_file():
+        resolved_result_url = f"/data/results/{res_name}"
+    elif (settings.RESULTS_DIR / res_name).is_file():
+        resolved_result_url = f"/data/results/{res_name}"
+    else:
+        resolved_result_url = resolved_orig_url
 
     defects_schema: List[DefectSchema] = []
     for d in inspection.defects:
@@ -82,8 +103,8 @@ def _to_inspection_response(inspection: Inspection) -> InspectionResponse:
         timestamp=inspection.timestamp,
         source=inspection.source,
         filename=inspection.filename,
-        original_url=f"/data/uploads/{orig_name}",
-        result_url=f"/data/results/{res_name}",
+        original_url=resolved_orig_url,
+        result_url=resolved_result_url,
         total_defects=inspection.total_defects,
         critical_count=inspection.critical_count,
         major_count=inspection.major_count,

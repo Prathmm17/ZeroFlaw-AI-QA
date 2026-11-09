@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  AlertTriangle,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -10,7 +11,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { apiClient, resolveMediaUrl } from '../api/client';
+import { apiClient, isColdStartError, resolveMediaUrl } from '../api/client';
 import { DefectViewer } from '../components/DefectViewer';
 import { SeverityBadge } from '../components/SeverityBadge';
 import { Inspection } from '../types';
@@ -28,16 +29,23 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectInspection }) 
   const [severityFilter, setSeverityFilter] = useState('all');
   const [selectedInspection, setSelectedInspection] = useState<Inspection | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchHistory = async () => {
     try {
       setLoading(true);
+      setErrorMsg(null);
       const res = await apiClient.getHistory(page, 15, statusFilter, severityFilter);
       setInspections(res.items);
       setTotal(res.total);
       setPages(res.pages);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load history:', err);
+      if (isColdStartError(err)) {
+        setErrorMsg('The AI backend is warming up (Render free tier). Please retry in 15 seconds.');
+      } else {
+        setErrorMsg('Failed to load audit history.');
+      }
     } finally {
       setLoading(false);
     }
@@ -62,6 +70,21 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectInspection }) 
 
   return (
     <div className="space-y-6">
+      {errorMsg && (
+        <div className="bg-amber-950/70 border border-amber-500/50 p-4 rounded-2xl text-xs text-amber-200 flex items-center justify-between backdrop-blur-xl">
+          <div className="flex items-center space-x-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            onClick={fetchHistory}
+            className="px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold border border-amber-400/30 text-xs"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Header & Filter Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

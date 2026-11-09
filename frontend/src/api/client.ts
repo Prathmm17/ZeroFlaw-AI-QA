@@ -20,9 +20,23 @@ export function resolveMediaUrl(path: string): string {
   return hostUrl ? `${hostUrl}${cleanPath}` : cleanPath;
 }
 
+export function isColdStartError(err: any): boolean {
+  if (!err) return false;
+  const msg = (err.message || '').toLowerCase();
+  const code = (err.code || '').toLowerCase();
+  return (
+    code === 'econnaborted' ||
+    msg.includes('timeout') ||
+    msg.includes('network error') ||
+    err.response?.status === 502 ||
+    err.response?.status === 503 ||
+    err.response?.status === 504
+  );
+}
+
 const api = axios.create({
   baseURL,
-  timeout: 30000,
+  timeout: 90000,
 });
 
 export const apiClient = {
@@ -42,6 +56,7 @@ export const apiClient = {
     const res = await api.post<Inspection>('/detect/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       params: { deep_verify: deepVerify },
+      timeout: 120000,
     });
     return res.data;
   },
@@ -103,6 +118,11 @@ export const apiClient = {
     return res.data;
   },
 
+  async runAudit(inspectionId: number): Promise<any> {
+    const res = await api.post(`/detect/${inspectionId}/audit`);
+    return res.data;
+  },
+
   get8DReportPdfUrl(inspectionId: number): string {
     return resolveMediaUrl(`/api/detect/${inspectionId}/8d-report/pdf`);
   },
@@ -150,6 +170,7 @@ export const apiClient = {
         confidence_threshold: confidenceThreshold,
         ambient_boost: ambientBoost,
       },
+      timeout: 300000,
     });
     return res.data;
   },
