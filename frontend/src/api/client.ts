@@ -12,11 +12,19 @@ import {
 const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 const baseURL = apiBase ? (apiBase.endsWith('/api') ? apiBase : `${apiBase}/api`) : '/api';
 
+export const FALLBACK_IMAGE_DATA_URI =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgZmlsbD0iIzYzNjZmMSIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBkPSJNMjEgMTlWNWMwLTEuMS0uOS0yLTItMkg1Yy0xLjEgMC0yIC45LTIgMnYxNGMwIDEuMS45IDIgMiAyaDE0YzEuMSAwIDItLjkgMi0yek04LjUgMTMuNWwyLjUgMy4wMUwxNC41IDEybDQuNSA2SDVsMy41LTQuNXoiLz48L3N2Zz4=';
+
 export function resolveMediaUrl(path: string): string {
   if (!path) return '';
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  const hostUrl = apiBase ? apiBase.replace(/\/api\/?$/, '') : '';
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  // Demo sample catalog specimens are bundled directly with frontend hosting
+  // so they render with zero latency without waiting for backend cold-start
+  if (cleanPath.startsWith('/data/samples/')) {
+    return cleanPath;
+  }
+  const hostUrl = apiBase ? apiBase.replace(/\/api\/?$/, '') : '';
   return hostUrl ? `${hostUrl}${cleanPath}` : cleanPath;
 }
 

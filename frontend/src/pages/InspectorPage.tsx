@@ -10,9 +10,23 @@ import {
   Info,
   ShieldAlert,
 } from 'lucide-react';
-import { apiClient, isColdStartError, resolveMediaUrl } from '../api/client';
+import { apiClient, isColdStartError, resolveMediaUrl, FALLBACK_IMAGE_DATA_URI } from '../api/client';
 import { DefectViewer } from '../components/DefectViewer';
 import { Inspection } from '../types';
+
+const CATALOG_SAMPLES = [
+  'benchmark_2048_hairline.png',
+  'sample_chip_004.png',
+  'sample_crack_000.png',
+  'sample_crack_005.png',
+  'sample_crack_006.png',
+  'sample_crack_007.png',
+  'sample_crack_009.png',
+  'sample_dent_002.png',
+  'sample_scratch_001.png',
+  'sample_stain_003.png',
+  'sample_stain_008.png',
+];
 
 interface InspectorPageProps {
   currentInspection: Inspection | null;
@@ -23,8 +37,8 @@ export const InspectorPage: React.FC<InspectorPageProps> = ({
   currentInspection,
   onInspectionLoaded,
 }) => {
-  const [samples, setSamples] = useState<string[]>([]);
-  const [selectedSample, setSelectedSample] = useState<string>('');
+  const [samples, setSamples] = useState<string[]>(CATALOG_SAMPLES);
+  const [selectedSample, setSelectedSample] = useState<string>(CATALOG_SAMPLES[0]);
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [notes, setNotes] = useState('');
@@ -212,9 +226,11 @@ export const InspectorPage: React.FC<InspectorPageProps> = ({
                   <img
                     src={resolveMediaUrl(`/data/samples/${sample}`)}
                     alt={sample}
+                    loading="lazy"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="%236366f1" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+                      const img = e.currentTarget;
+                      img.onerror = null;
+                      img.src = FALLBACK_IMAGE_DATA_URI;
                     }}
                     className="w-8 h-8 rounded-lg object-cover bg-black/60 shrink-0 ring-1 ring-white/10"
                   />

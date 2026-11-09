@@ -422,6 +422,23 @@ export const DefectViewer: React.FC<DefectViewerProps> = ({ inspection }) => {
                 updateImageBounds();
               }}
               onError={() => {
+                // If annotated result image failed to load, automatically fall back to raw original
+                if (imgRef.current && showAnnotated && currentInspection.original_url) {
+                  const rawUrl = resolveMediaUrl(currentInspection.original_url);
+                  if (imgRef.current.src !== rawUrl) {
+                    imgRef.current.src = rawUrl;
+                    return;
+                  }
+                }
+                // If original specimen was a demo catalog sample, fall back to local static asset
+                if (
+                  imgRef.current &&
+                  currentInspection.filename &&
+                  !imgRef.current.src.includes(`/data/samples/${currentInspection.filename}`)
+                ) {
+                  imgRef.current.src = resolveMediaUrl(`/data/samples/${currentInspection.filename}`);
+                  return;
+                }
                 setImageLoadError(true);
                 setImageLoaded(false);
               }}

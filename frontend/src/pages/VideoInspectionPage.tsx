@@ -16,7 +16,7 @@ import {
   UploadCloud,
   Video,
 } from 'lucide-react';
-import { apiClient, isColdStartError, resolveMediaUrl } from '../api/client';
+import { apiClient, isColdStartError, resolveMediaUrl, FALLBACK_IMAGE_DATA_URI } from '../api/client';
 import { SeverityBadge } from '../components/SeverityBadge';
 import { SeverityLevel, VideoJob, VideoTimelineItem } from '../types';
 
@@ -113,6 +113,10 @@ export const VideoInspectionPage: React.FC = () => {
 
   const handleUploadAndAnalyze = async () => {
     if (!selectedFile) return;
+    if (selectedFile.size > 50 * 1024 * 1024) {
+      setErrorMessage(`Video file is too large (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB). Please select a video under 50MB.`);
+      return;
+    }
     setIsUploading(true);
     setErrorMessage(null);
     setCurrentJob(null);
@@ -131,7 +135,7 @@ export const VideoInspectionPage: React.FC = () => {
     } catch (err: any) {
       setIsUploading(false);
       if (isColdStartError(err)) {
-        setErrorMessage('The AI engine is waking up from sleep (Render free tier). Please retry in 15 seconds.');
+        setErrorMessage('The AI engine is waking up from sleep (Render free tier cold start ~30–50s). Please wait a few seconds and click Analyze again.');
       } else {
         setErrorMessage(err.response?.data?.detail || err.message || 'Upload failed');
       }
@@ -637,8 +641,9 @@ export const VideoInspectionPage: React.FC = () => {
                         src={resolveMediaUrl(item.thumbnail_url)}
                         alt={`Defect at ${item.timestamp_sec}s`}
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="%236366f1" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+                          const img = e.currentTarget;
+                          img.onerror = null;
+                          img.src = FALLBACK_IMAGE_DATA_URI;
                         }}
                         className="w-full h-full object-cover"
                       />

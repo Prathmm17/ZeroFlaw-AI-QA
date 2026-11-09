@@ -12,11 +12,20 @@ import {
   TrendingUp,
   Zap,
 } from 'lucide-react';
-import { apiClient, isColdStartError, resolveMediaUrl } from '../api/client';
+import { apiClient, isColdStartError, resolveMediaUrl, FALLBACK_IMAGE_DATA_URI } from '../api/client';
 import { AlertTicker } from '../components/AlertTicker';
 import { SeverityBadge } from '../components/SeverityBadge';
 import { StatsCard } from '../components/StatsCard';
 import { AnalyticsOverview, Inspection, QualityAlert } from '../types';
+
+const INITIAL_SAMPLES = [
+  'benchmark_2048_hairline.png',
+  'sample_crack_000.png',
+  'sample_dent_002.png',
+  'sample_scratch_001.png',
+  'sample_chip_004.png',
+  'sample_stain_003.png',
+];
 
 interface DashboardPageProps {
   onNavigate: (tab: string) => void;
@@ -30,7 +39,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const [analytics, setAnalytics] = useState<AnalyticsOverview | null>(null);
   const [recentInspections, setRecentInspections] = useState<Inspection[]>([]);
   const [alerts, setAlerts] = useState<QualityAlert[]>([]);
-  const [samples, setSamples] = useState<string[]>([]);
+  const [samples, setSamples] = useState<string[]>(INITIAL_SAMPLES);
   const [inspectingSample, setInspectingSample] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -241,9 +250,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                   <img
                     src={resolveMediaUrl(`/data/samples/${sample}`)}
                     alt={sample}
+                    loading="lazy"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="%236366f1" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+                      const img = e.currentTarget;
+                      img.onerror = null;
+                      img.src = FALLBACK_IMAGE_DATA_URI;
                     }}
                     className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                   />
